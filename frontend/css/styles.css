@@ -1,1 +1,132 @@
-body{background:#0a192f;color:#fff;font-family:sans-serif}.screen{display:none}.screen.active{display:block}
+/* ------------------------------
+   ESTILO GENERAL
+--------------------------------*/
+body {
+    margin: 0;
+    font-family: "Segoe UI", sans-serif;
+    background: linear-gradient(#001020, #001a33);
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+}
+
+/* ------------------------------
+   CONTENEDOR PRINCIPAL
+--------------------------------*/
+.atm-container {
+    width: 420px;
+    background: #071a2d;
+    padding: 25px;
+    border-radius: 14px;
+    box-shadow: 0 0 25px rgba(0, 255, 255, 0.15);
+    animation: fadeIn 0.6s ease-out;
+}
+
+/* Animación caja */
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.97); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.atm-header h1 {
+    margin: 0 0 10px 0;
+    font-size: 22px;
+    color: #00eaff;
+}
+
+/* ------------------------------
+   PANTALLAS
+--------------------------------*/
+.screen {
+    display: none;
+    animation: fadeScreen 0.3s ease-out;
+}
+
+.screen.active {
+    display: block;
+}
+
+@keyframes fadeScreen {
+    from { opacity: 0; transform: translateX(10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+/* ------------------------------
+   BOTONES Y FORMULARIOS
+--------------------------------*/
+input, button {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    border-radius: 8px;
+    border: none;
+    font-size: 16px;
+}
+
+button {
+    background: #00b7ff;
+    color: black;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+button:hover {
+    background: #00d4ff;
+    transform: scale(1.03);
+}
+
+/* Botones secundarios */
+.btn-secondary {
+    background: #445;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #667;
+}
+
+/* ------------------------------
+   GRID DEL MENÚ
+--------------------------------*/
+.menu-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+/* ------------------------------
+   MENSAJES
+--------------------------------*/
+.error-msg {
+    color: #ff5f5f;
+    font-size: 14px;
+}
+
+.info-msg {
+    color: #00ff9d;
+    font-size: 14px;
+}
+
+/* ------------------------------
+   TABLA HISTORIAL
+--------------------------------*/
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th, .table td {
+    border-bottom: 1px solid #334;
+    padding: 6px;
+    text-align: center;
+}
+
+.comprobante-box {
+    background: #00000080;
+    padding: 10px;
+    border-radius: 10px;
+    color: #0ff;
+    font-size: 14px;
+}
