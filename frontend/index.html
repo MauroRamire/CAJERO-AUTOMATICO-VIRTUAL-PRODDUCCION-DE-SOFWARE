@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"><title>Cajero Automático Virtual</title>
+<link rel="stylesheet" href="css/styles.css"></head>
+<body><div class="atm-container"><header class="atm-header"><h1>Cajero Automático Virtual</h1>
+<span id="user-info" class="user-info"></span></header>
+<section id="screen-login" class="screen active"><h2>Iniciar Sesión</h2>
+<form id="form-login"><label>Usuario</label><input id="login-usuario" required>
+<label>PIN</label><input id="login-pin" type="password" required>
+<button type="submit">Ingresar</button></form><p id="login-error" class="error-msg"></p></section>
+<section id="screen-menu" class="screen"><h2>Menú Principal</h2>
+<div class="menu-grid">
+<button data-screen="screen-saldo">Consultar saldo</button>
+<button data-screen="screen-retiro">Retirar dinero</button>
+<button data-screen="screen-deposito">Depositar dinero</button>
+<button data-screen="screen-transferencia">Transferir</button>
+<button data-screen="screen-historial">Historial</button>
+<button data-screen="screen-cambiar-pin">Cambiar PIN</button>
+<button data-screen="screen-bloquear">Bloquear cuenta</button>
+<button data-screen="screen-comprobante">Ver comprobante</button>
+</div><button id="btn-logout" class="btn-secondary">Cerrar sesión</button></section>
+<section id="screen-saldo" class="screen"><h2>Consultar saldo</h2>
+<p>Saldo actual: <span id="saldo-actual">$0.00</span></p>
+<button class="btn-secondary" data-screen="screen-menu">Volver</button></section>
+<section id="screen-retiro" class="screen"><h2>Retirar dinero</h2>
+<form id="form-retiro"><label>Monto</label><input id="retiro-monto" type="number" min="1" required>
+<button type="submit">Retirar</button></form><p id="retiro-msg" class="info-msg"></p>
+<button class="btn-secondary" data-screen="screen-menu">Volver</button></section>
+<section id="screen-deposito" class="screen"><h2>Depositar dinero</h2>
+<form id="form-deposito"><label>Monto</label><input id="deposito-monto" type="number" min="1" required>
+<button type="submit">Depositar</button></form><p id="deposito-msg" class="info-msg"></p>
+<button class="btn-secondary" data-screen="screen-menu">Volver</button></section>
+<section id="screen-transferencia" class="screen"><h2>Transferir</h2>
+<form id="form-transferencia"><label>Cuenta destino</label><input id="transfer-destino" required>
+<label>Monto</label><input id="transfer-monto" type="number" min="1" required>
+<button type="submit">Transferir</button></form><p id="transfer-msg" class="info-msg"></p>
+<button class="btn-secondary" data-screen="screen-menu">Volver</button></section>
+<section id="screen-historial" class="screen"><h2>Historial</h2>
+<table class="table"><thead><tr><th>Fecha</th><th>Tipo</th><th>Monto</th></tr></thead>
+<tbody id="historial-body"></tbody></table><button class="btn-secondary" data-screen="screen-menu">Volver</button></section>
+<section id="screen-cambiar-pin" class="screen"><h2>Cambiar PIN</h2>
+<form id="form-cambiar-pin"><label>PIN actual</label><input id="pin-actual" type="password" required>
+<label>PIN nuevo</label><input id="pin-nuevo" type="password" required>
+<button type="submit">Cambiar PIN</button></form><p id="pin-msg" class="info-msg"></p>
+<button class="btn-secondary" data-screen="screen-menu">Volver</button></section>
+<section id="screen-bloquear" class="screen"><h2>Bloquear cuenta</h2>
+<p>¿Seguro?</p><button id="btn-bloquear-confirm">Sí, bloquear</button>
+<p id="bloquear-msg" class="info-msg"></p><button class="btn-secondary" data-screen="screen-menu">Volver</button></section>
+<section id="screen-comprobante" class="screen"><h2>Comprobante</h2>
+<form id="form-comprobante"><label>ID</label><input id="comp-id" required>
+<button type="submit">Buscar</button></form><pre id="comp-detalle" class="comprobante-box"></pre>
+<button class="btn-secondary" data-screen="screen-menu">Volver</button></section>
+<footer class="atm-footer"><small>Cajero Automático Virtual</small></footer></div>
+<script src="js/app.js"></script></body></html>
