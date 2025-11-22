@@ -2,6 +2,18 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 from database import test_query, get_saldo, hacer_deposito, hacer_retiro
+from database import (
+    test_query,
+    get_saldo,
+    hacer_deposito,
+    hacer_retiro,
+    hacer_transferencia,
+    obtener_historial,
+    cambiar_pin_db,
+    bloquear_cuenta_db,
+)
+
+
 
 
 
@@ -20,6 +32,7 @@ class LoginRequest(BaseModel):
 class RetiroRequest(BaseModel):
     numero_cuenta: str
     monto: float
+    pin: str
 
 class DepositoRequest(BaseModel):
     numero_cuenta: str
@@ -29,6 +42,7 @@ class TransferenciaRequest(BaseModel):
     cuenta_origen: str
     cuenta_destino: str
     monto: float
+    pin: str
 
 class CambiarPINRequest(BaseModel):
     numero_cuenta: str
@@ -89,41 +103,82 @@ def deposito(data: DepositoRequest):
 
 @app.post("/transferencia")
 def transferencia(data: TransferenciaRequest):
-    return {
-        "status": "ok",
-        "tipo": "transferencia",
-        "cuenta_origen": data.cuenta_origen,
-        "cuenta_destino": data.cuenta_destino,
-        "monto": data.monto
-    }
+    try:
+        nuevo_saldo_origen, nuevo_saldo_destino = hacer_transferencia(
+        data.cuenta_origen,
+        data.cuenta_destino,
+        data.monto,
+        data.pin,
+        )
+        
+        return {
+            "status": "ok",
+            "tipo": "transferencia",
+            "cuenta_origen": data.cuenta_origen,
+            "cuenta_destino": data.cuenta_destino,
+            "monto": data.monto,
+            "nuevo_saldo_origen": float(nuevo_saldo_origen),
+            "nuevo_saldo_destino": float(nuevo_saldo_destino),
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/historial")
-def historial(numero_cuenta: str):
-    # mock de movimientos
+def historial(numero_cuenta: str, limite: int = 10):
+    rows = obtener_historial(numero_cuenta, limite)
+    if rows is None:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+
     return {
+        "status": "ok",
         "numero_cuenta": numero_cuenta,
+        "cantidad_movimientos": len(rows),
         "movimientos": [
-            {"tipo": "retiro", "monto": 100000},
-            {"tipo": "deposito", "monto": 200000},
-        ]
+            {
+                "tipo": r["tipo"],
+                "monto": float(r["monto"]),
+                "fecha": r["fecha"],
+                "descripcion": r["descripcion"],
+                "saldo_resultante": float(r["saldo_resultante"]),
+            }
+            for r in rows
+        ],
     }
+
 
 @app.put("/cambiarPIN")
 def cambiar_pin(data: CambiarPINRequest):
-    return {
-        "status": "ok",
-        "message": "PIN cambiado (mock)",
-        "numero_cuenta": data.numero_cuenta
-    }
+    try:
+        cambiar_pin_db(data.numero_cuenta, data.pin_actual, data.pin_nuevo)
+        return {
+            "status": "ok",
+            "message": "PIN cambiado correctamente",
+            "numero_cuenta": data.numero_cuenta,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.put("/bloquearCuenta")
 def bloquear_cuenta(data: BloquearCuentaRequest):
-    return {
-        "status": "ok",
-        "message": "Cuenta bloqueada (mock)",
-        "numero_cuenta": data.numero_cuenta,
-        "motivo": data.motivo,
-    }
+    try:
+        bloquear_cuenta_db(data.numero_cuenta, data.motivo)
+        return {
+            "status": "ok",
+            "message": "Cuenta bloqueada correctamente",
+            "numero_cuenta": data.numero_cuenta,
+            "motivo": data.motivo,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/comprobante")
 def comprobante(id_transaccion: str):
@@ -143,7 +198,7 @@ def db_test():
 @app.post("/retiro")
 def retiro(data: RetiroRequest):
     try:
-        nuevo_saldo = hacer_retiro(data.numero_cuenta, data.monto)
+        nuevo_saldo = hacer_retiro(data.numero_cuenta, data.monto, data.pin)
         return {
             "status": "ok",
             "tipo": "retiro",
