@@ -37,5 +37,5 @@ class DatosTransfer(BaseModel):
     monto: float
 
 class DatosPin(BaseModel):
-    actual: str
-    nuevo: str
+    actual: str   # PIN actual
+    nuevo: str    # PIN nuevo

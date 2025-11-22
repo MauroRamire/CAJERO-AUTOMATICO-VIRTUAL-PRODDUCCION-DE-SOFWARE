@@ -1,17 +1,17 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from domain import (
-    Cuenta, 
-    Movimiento, 
-    TipoMovimiento, 
+    Cuenta,
+    Movimiento,
+    TipoMovimiento,
     EstadoCuenta,
     DatosMonto,
     DatosTransfer,
-    DatosPin
+    DatosPin,
 )
 from database import (
     crear_cuenta,
-    obtener_cuenta,
+    obtener_cuenta as obtener_cuenta_db,
     obtener_movimientos,
     registrar_movimiento,
     buscar_movimiento_por_id,
@@ -31,26 +31,39 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ======================================================
+# ==============================================
 # CUENTA INICIAL (para que el login funcione)
-# ======================================================
+# ==============================================
 cuenta_inicial = Cuenta(
     numero="1234",
     nombre="Mauro",
     pin="1234",
     saldo=5000000,
-    estado=EstadoCuenta.ACTIVA
+    estado=EstadoCuenta.ACTIVA,
+)
+
+cuenta_destino_demo = Cuenta(
+    numero="123456789",
+    nombre="Cuenta Destino",
+    pin="9999",
+    saldo=1000000,
+    estado=EstadoCuenta.ACTIVA,
 )
 
 try:
     crear_cuenta(cuenta_inicial)
-except:
+    crear_cuenta(cuenta_destino_demo)
+except ValueError:
     pass
 
 
-@app.get("/")
-def home():
-    return {"ok": True}
+# Registramos la cuenta inicial en la "base de datos" en memoria
+try:
+    crear_cuenta(cuenta_inicial)
+except ValueError:
+    # si ya existe, simplemente lo ignoramos
+    pass
+
 
 # ======================================================
 # CREAR CUENTA
@@ -65,12 +78,12 @@ def crear_nueva_cuenta(cuenta: Cuenta):
 
 
 # ======================================================
-# OBTENER CUENTA
+# OBTENER CUENTA (LOGIN / CONSULTA)
 # ======================================================
 @app.get("/cuentas/{numero}")
-def obtener_cuenta_por_numero(numero: str):
+def obtener_cuenta(numero: str):
     try:
-        return obtener_cuenta(numero)
+        return obtener_cuenta_db(numero)   # <-- SIEMPRE usamos database.py
     except ValueError:
         raise HTTPException(status_code=404, detail="Cuenta no encontrada")
 
@@ -89,8 +102,8 @@ def realizar_deposito(numero: str, datos: DatosMonto):
             Movimiento(
                 tipo=TipoMovimiento.CONSIGNACION,
                 monto=monto,
-                descripcion="Depósito"
-            )
+                descripcion="Depósito",
+            ),
         )
 
         return {"mensaje": "Depósito exitoso", "saldo": nuevo_saldo}
@@ -105,7 +118,7 @@ def realizar_deposito(numero: str, datos: DatosMonto):
 @app.post("/retiro/{numero}")
 def realizar_retiro(numero: str, datos: DatosMonto):
     monto = datos.monto
-    cuenta = obtener_cuenta(numero)
+    cuenta = obtener_cuenta_db(numero)
 
     if cuenta.saldo < monto:
         raise HTTPException(status_code=400, detail="Fondos insuficientes")
@@ -118,7 +131,7 @@ def realizar_retiro(numero: str, datos: DatosMonto):
             tipo=TipoMovimiento.RETIRO,
             monto=monto,
             descripcion="Retiro de dinero",
-        )
+        ),
     )
 
     return {"mensaje": "Retiro exitoso", "saldo": cuenta.saldo}
@@ -133,8 +146,15 @@ def transferir(datos: DatosTransfer):
     destino = datos.destino
     monto = datos.monto
 
-    c_origen = obtener_cuenta(origen)
-    c_destino = obtener_cuenta(destino)
+    # Intentar obtener cuentas, si alguna no existe -> 404
+    try:
+        c_origen = obtener_cuenta_db(origen)
+        c_destino = obtener_cuenta_db(destino)
+    except ValueError:
+        raise HTTPException(
+            status_code=404,
+            detail="Cuenta de origen o destino no encontrada"
+        )
 
     if c_origen.saldo < monto:
         raise HTTPException(status_code=400, detail="Fondos insuficientes")
@@ -147,8 +167,8 @@ def transferir(datos: DatosTransfer):
         Movimiento(
             tipo=TipoMovimiento.TRANSFERENCIA_SALIDA,
             monto=monto,
-            descripcion=f"Transferido a {destino}"
-        )
+            descripcion=f"Transferido a {destino}",
+        ),
     )
 
     registrar_movimiento(
@@ -156,11 +176,12 @@ def transferir(datos: DatosTransfer):
         Movimiento(
             tipo=TipoMovimiento.TRANSFERENCIA_ENTRADA,
             monto=monto,
-            descripcion=f"Recibido de {origen}"
-        )
+            descripcion=f"Recibido de {origen}",
+        ),
     )
 
     return {"mensaje": "Transferencia exitosa"}
+
 
 
 # ======================================================
@@ -187,7 +208,7 @@ def comprobar(id: str):
 # ======================================================
 @app.post("/cambiar_pin/{numero}")
 def cambiar_pin(numero: str, datos: DatosPin):
-    cuenta = obtener_cuenta(numero)
+    cuenta = obtener_cuenta_db(numero)
 
     if cuenta.pin != datos.actual:
         raise HTTPException(status_code=400, detail="PIN incorrecto")
@@ -201,6 +222,6 @@ def cambiar_pin(numero: str, datos: DatosPin):
 # ======================================================
 @app.post("/bloquear/{numero}")
 def bloquear(numero: str):
-    cuenta = obtener_cuenta(numero)
+    cuenta = obtener_cuenta_db(numero)
     cuenta.estado = EstadoCuenta.BLOQUEADA
     return {"mensaje": "Cuenta bloqueada exitosamente"}

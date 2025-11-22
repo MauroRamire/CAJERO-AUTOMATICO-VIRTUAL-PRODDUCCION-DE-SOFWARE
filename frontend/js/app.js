@@ -41,13 +41,26 @@ document.getElementById("form-login").addEventListener("submit", async (e) => {
     show("screen-menu");
 });
 
+
 // ===============================================
 // CERRAR SESIÓN
 // ===============================================
 document.getElementById("btn-logout").addEventListener("click", () => {
+    console.log("Click en Cerrar sesión");   // para ver en la Consola
+
+    // “Cerrar sesión” en el front
     cuentaActual = null;
+
+    // limpiar campos de login por si acaso
+    const userInput = document.getElementById("login-usuario");
+    const pinInput  = document.getElementById("login-pin");
+    if (userInput) userInput.value = "";
+    if (pinInput)  pinInput.value  = "";
+
+    // volver a la pantalla de login
     show("screen-login");
 });
+
 
 // ===============================================
 // NAVEGACIÓN DESDE MENÚ
@@ -116,8 +129,23 @@ document.getElementById("form-deposito").addEventListener("submit", async (e) =>
 document.getElementById("form-transferencia").addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const destino = document.getElementById("transfer-destino").value;
-    const monto = Number(document.getElementById("transfer-monto").value);
+    const destino = document.getElementById("transfer-destino").value.trim();
+    const monto   = Number(document.getElementById("transfer-monto").value);
+    const msgEl   = document.getElementById("transfer-msg");
+
+    msgEl.textContent = "";
+    msgEl.style.color = "red";
+
+    // Validación de cuenta: 9 dígitos
+    if (!/^\d{9}$/.test(destino)) {
+        msgEl.textContent = "Cuenta inválida: debe contener exactamente 9 dígitos.";
+        return;
+    }
+
+    if (!monto || monto <= 0) {
+        msgEl.textContent = "Monto inválido.";
+        return;
+    }
 
     const res = await fetch(`${API}/transferencia`, {
         method: "POST",
@@ -129,11 +157,19 @@ document.getElementById("form-transferencia").addEventListener("submit", async (
         })
     });
 
-    const data = await res.json();
-    document.getElementById("transfer-msg").textContent = data.mensaje;
+    const data = await res.json().catch(() => null);
 
-    cargarSaldo();
+    if (!res.ok) {
+        msgEl.textContent = data?.detail || "Error en la transferencia.";
+        return;
+    }
+
+    msgEl.style.color = "lightgreen";
+    msgEl.textContent = data.mensaje || "Transferencia exitosa";
+
+    await cargarSaldo();
 });
+
 
 // ===============================================
 // HISTORIAL
@@ -164,18 +200,44 @@ document.querySelector("button[data-screen='screen-historial']")
 document.getElementById("form-cambiar-pin").addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const pin_actual = document.getElementById("pin-actual").value;
-    const pin_nuevo = document.getElementById("pin-nuevo").value;
+    const actual = document.getElementById("pin-actual").value;
+    const nuevo  = document.getElementById("pin-nuevo").value;
+    const msgEl  = document.getElementById("pin-msg");
 
+    msgEl.textContent = "";
+    msgEl.style.color = "red";
+
+    if (!actual || !nuevo) {
+        msgEl.textContent = "Debes ingresar el PIN actual y el nuevo.";
+        return;
+    }
+
+    // Llamar al backend para cambiar el PIN de la cuenta actual
     const res = await fetch(`${API}/cambiar_pin/${cuentaActual}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin_actual, pin_nuevo })
+        body: JSON.stringify({ actual, nuevo })
     });
 
-    const data = await res.json();
-    document.getElementById("pin-msg").textContent = data.mensaje;
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok) {
+        msgEl.textContent = data?.detail || "Error al cambiar PIN";
+        return;
+    }
+
+    // Éxito
+    msgEl.style.color = "lightgreen";
+    msgEl.textContent = data.mensaje || "PIN actualizado correctamente";
+
+    // Opcional: cerrar sesión y volver al login
+    cuentaActual = null;
+    document.getElementById("login-usuario").value = "";
+    document.getElementById("login-pin").value = "";
+    show("screen-login");
 });
+
+
 
 // ===============================================
 // BLOQUEAR CUENTA
@@ -202,8 +264,14 @@ document.getElementById("form-comprobante").addEventListener("submit", async (e)
 });
 
 // ===============================================
-// BOTONES "VOLVER"
+// BOTONES "VOLVER" (excepto Cerrar sesión)
 // ===============================================
 document.querySelectorAll(".btn-secondary").forEach(btn => {
-    btn.addEventListener("click", () => show("screen-menu"));
+    btn.addEventListener("click", () => {
+        // Si NO es el botón de cerrar sesión, vuelve al menú
+        if (btn.id !== "btn-logout") {
+            show("screen-menu");
+        }
+    });
 });
+
