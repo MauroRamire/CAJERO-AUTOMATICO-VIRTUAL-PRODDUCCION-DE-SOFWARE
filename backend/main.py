@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Optional, List
 from database import test_query
+from database import test_query, get_saldo
+
 
 
 app = FastAPI(title="Cajero Virtual API")
@@ -57,17 +59,15 @@ def logout():
 
 @app.get("/saldo")
 def obtener_saldo(numero_cuenta: str):
-    # mock
-    return {"numero_cuenta": numero_cuenta, "saldo": 123456.78}
-
-@app.post("/retiro")
-def retiro(data: RetiroRequest):
+    row = get_saldo(numero_cuenta)
+    if row is None:
+        return {"status": "error", "message": "Cuenta no encontrada"}
     return {
         "status": "ok",
-        "tipo": "retiro",
-        "numero_cuenta": data.numero_cuenta,
-        "monto": data.monto
+        "numero_cuenta": numero_cuenta,
+        "saldo": float(row["saldo"])
     }
+
 
 @app.post("/deposito")
 def deposito(data: DepositoRequest):

@@ -28,3 +28,18 @@ def test_query():
             return row
     finally:
         conn.close()
+
+def get_saldo(numero_cuenta: str):
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "SELECT saldo FROM cuentas WHERE numero_cuenta = %s",
+                (numero_cuenta,)
+            )
+            row = cur.fetchone()   # None si no existe
+            return row
+    finally:
+        conn.close()
+
+
