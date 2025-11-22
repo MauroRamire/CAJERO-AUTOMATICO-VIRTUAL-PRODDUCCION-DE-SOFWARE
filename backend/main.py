@@ -1,8 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import Optional, List
-from database import test_query
-from database import test_query, get_saldo
+from typing import Optional
+from database import test_query, get_saldo, hacer_deposito, hacer_retiro
+
 
 
 
@@ -71,12 +71,21 @@ def obtener_saldo(numero_cuenta: str):
 
 @app.post("/deposito")
 def deposito(data: DepositoRequest):
-    return {
-        "status": "ok",
-        "tipo": "deposito",
-        "numero_cuenta": data.numero_cuenta,
-        "monto": data.monto
-    }
+    try:
+        nuevo_saldo = hacer_deposito(data.numero_cuenta, data.monto)
+        return {
+            "status": "ok",
+            "tipo": "deposito",
+            "numero_cuenta": data.numero_cuenta,
+            "monto": data.monto,
+            "nuevo_saldo": float(nuevo_saldo),
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        # 👇 cambiar esta línea
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/transferencia")
 def transferencia(data: TransferenciaRequest):
@@ -130,6 +139,24 @@ def db_test():
         return {"status": "ok", "db_response": result}
     except Exception as e:
         return {"status": "error", "detail": str(e)}
+
+@app.post("/retiro")
+def retiro(data: RetiroRequest):
+    try:
+        nuevo_saldo = hacer_retiro(data.numero_cuenta, data.monto)
+        return {
+            "status": "ok",
+            "tipo": "retiro",
+            "numero_cuenta": data.numero_cuenta,
+            "monto": data.monto,
+            "nuevo_saldo": float(nuevo_saldo),
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        # 👇 cambiar esta línea
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 
 
