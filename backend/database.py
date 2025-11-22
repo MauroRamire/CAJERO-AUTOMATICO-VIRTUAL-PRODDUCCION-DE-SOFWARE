@@ -55,20 +55,25 @@ def hacer_deposito(numero_cuenta: str, monto: float):
     if monto <= 0:
         raise ValueError("El monto debe ser mayor a 0")
 
+    monto_decimal = Decimal(str(monto))
+
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            # Bloquear la fila de la cuenta mientras se actualiza
+            # Traer cuenta, incluyendo ESTADO
             cur.execute(
-                "SELECT id, saldo FROM cuentas WHERE numero_cuenta = %s FOR UPDATE",
+                "SELECT id, saldo, estado FROM cuentas WHERE numero_cuenta = %s FOR UPDATE",
                 (numero_cuenta,),
             )
             row = cur.fetchone()
             if row is None:
                 raise ValueError("Cuenta no encontrada")
 
+            # Validar bloqueo
+            if row["estado"] == "BLOQUEADA":
+                raise ValueError("Cuenta bloqueada")
+
             saldo_actual = Decimal(row["saldo"])
-            monto_decimal = Decimal(str(monto))
             nuevo_saldo = saldo_actual + monto_decimal
 
             # Actualizar saldo
@@ -80,10 +85,16 @@ def hacer_deposito(numero_cuenta: str, monto: float):
             # Registrar movimiento
             cur.execute(
                 """
-                INSERT INTO movimientos (cuenta_id, tipo, monto_decimal, descripcion, saldo_resultante)
+                INSERT INTO movimientos (cuenta_id, tipo, monto, descripcion, saldo_resultante)
                 VALUES (%s, %s, %s, %s, %s)
                 """,
-                (row["id"], "DEPOSITO", monto_decimal, "Depósito en efectivo", nuevo_saldo),
+                (
+                    row["id"],
+                    "DEPOSITO",
+                    monto_decimal,
+                    "Depósito en cajero",
+                    nuevo_saldo,
+                ),
             )
 
         conn.commit()
@@ -95,10 +106,11 @@ def hacer_deposito(numero_cuenta: str, monto: float):
         conn.close()
 
 
-
 def hacer_retiro(numero_cuenta: str, monto: float, pin: str):
     if monto <= 0:
         raise ValueError("El monto debe ser mayor a 0")
+
+    monto_decimal = Decimal(str(monto))
 
     conn = get_connection()
     try:
@@ -116,13 +128,13 @@ def hacer_retiro(numero_cuenta: str, monto: float, pin: str):
 
             if not bcrypt.checkpw(pin.encode("utf-8"), row["pin_hash"].encode("utf-8")):
                 raise ValueError("PIN incorrecto")
-            if row is None:
-                raise ValueError("Cuenta no encontrada")
 
-            if row["saldo"] < monto:
+            saldo_actual = Decimal(row["saldo"])
+
+            if saldo_actual < monto_decimal:
                 raise ValueError("Saldo insuficiente")
 
-            nuevo_saldo = row["saldo"] - monto
+            nuevo_saldo = saldo_actual - monto_decimal
 
             # Actualizar saldo
             cur.execute(
@@ -133,10 +145,16 @@ def hacer_retiro(numero_cuenta: str, monto: float, pin: str):
             # Registrar movimiento
             cur.execute(
                 """
-                INSERT INTO movimientos (cuenta_id, tipo, monto_decimal, descripcion, saldo_resultante)
+                INSERT INTO movimientos (cuenta_id, tipo, monto, descripcion, saldo_resultante)
                 VALUES (%s, %s, %s, %s, %s)
                 """,
-                (row["id"], "RETIRO", monto, "Retiro en cajero", nuevo_saldo),
+                (
+                    row["id"],
+                    "RETIRO",
+                    monto_decimal,
+                    "Retiro en cajero",
+                    nuevo_saldo,
+                ),
             )
 
         conn.commit()
@@ -147,94 +165,6 @@ def hacer_retiro(numero_cuenta: str, monto: float, pin: str):
     finally:
         conn.close()
 
-def cambiar_pin_db(numero_cuenta: str, pin_actual: str, pin_nuevo: str):
-    if not pin_nuevo or len(pin_nuevo) < 4:
-        raise ValueError("El PIN nuevo debe tener al menos 4 dígitos")
-
-    conn = get_connection()
-    try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            # Traer cuenta
-            cur.execute(
-                "SELECT id, pin_hash FROM cuentas WHERE numero_cuenta = %s",
-                (numero_cuenta,),
-            )
-            row = cur.fetchone()
-            if row is None:
-                raise ValueError("Cuenta no encontrada")
-
-            pin_hash_actual = row["pin_hash"]
-            if not pin_hash_actual:
-                raise ValueError("La cuenta no tiene PIN configurado")
-
-            # Verificar PIN actual
-            if not bcrypt.checkpw(
-                pin_actual.encode("utf-8"),
-                pin_hash_actual.encode("utf-8"),
-            ):
-                raise ValueError("PIN actual incorrecto")
-
-            # Generar hash del nuevo PIN
-            nuevo_hash = bcrypt.hashpw(
-                pin_nuevo.encode("utf-8"),
-                bcrypt.gensalt(),
-            ).decode("utf-8")
-
-            # Actualizar
-            cur.execute(
-                "UPDATE cuentas SET pin_hash = %s WHERE id = %s",
-                (nuevo_hash, row["id"]),
-            )
-
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
-
-
-def bloquear_cuenta_db(numero_cuenta: str, motivo: str | None = None):
-    conn = get_connection()
-    try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                "SELECT id, estado FROM cuentas WHERE numero_cuenta = %s",
-                (numero_cuenta,),
-            )
-            row = cur.fetchone()
-            if row is None:
-                raise ValueError("Cuenta no encontrada")
-
-            if row["estado"] == "BLOQUEADA":
-                raise ValueError("La cuenta ya estaba bloqueada")
-
-            cur.execute(
-                "UPDATE cuentas SET estado = %s WHERE id = %s",
-                ("BLOQUEADA", row["id"]),
-            )
-
-            # Opcional: registrar movimiento de bloqueo
-            cur.execute(
-                """
-                INSERT INTO movimientos (cuenta_id, tipo, monto_decimal, descripcion, saldo_resultante)
-                VALUES (%s, %s, %s, %s, %s)
-                """,
-                (
-                    row["id"],
-                    "BLOQUEO",
-                    Decimal("0"),
-                    motivo or "Bloqueo de cuenta",
-                    Decimal("0"),
-                ),
-            )
-
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
 
 
 def hacer_transferencia(cuenta_origen: str, cuenta_destino: str, monto: float, pin: str):
@@ -357,6 +287,105 @@ def obtener_historial(numero_cuenta: str, limite: int = 10):
             return rows
     finally:
         conn.close()
+
+import bcrypt
+from decimal import Decimal
+from psycopg2.extras import RealDictCursor
+
+def cambiar_pin(numero_cuenta: str, pin_actual: str, pin_nuevo: str):
+    if len(pin_nuevo) != 4 or not pin_nuevo.isdigit():
+        raise ValueError("El nuevo PIN debe tener 4 dígitos numéricos")
+
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Obtener la cuenta
+            cur.execute(
+                "SELECT id, pin_hash FROM cuentas WHERE numero_cuenta = %s FOR UPDATE",
+                (numero_cuenta,)
+            )
+            cuenta = cur.fetchone()
+
+            if cuenta is None:
+                raise ValueError("Cuenta no encontrada")
+
+            # Verificar PIN actual
+            if not bcrypt.checkpw(pin_actual.encode("utf-8"), cuenta["pin_hash"].encode("utf-8")):
+                raise ValueError("El PIN actual es incorrecto")
+
+            # Hashear nuevo PIN
+            nuevo_hash = bcrypt.hashpw(pin_nuevo.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+            # Actualizar PIN
+            cur.execute(
+                "UPDATE cuentas SET pin_hash = %s WHERE id = %s",
+                (nuevo_hash, cuenta["id"])
+            )
+
+            # Registrar movimiento
+            cur.execute(
+                """
+                INSERT INTO movimientos (cuenta_id, tipo, monto, descripcion, saldo_resultante)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (cuenta["id"], "CAMBIO_PIN", Decimal("0"), "Cambio de PIN", Decimal("0"))
+            )
+
+        conn.commit()
+        return True
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.close()
+
+def bloquear_cuenta(numero_cuenta: str, motivo: str = None):
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Verificar cuenta
+            cur.execute(
+                "SELECT id FROM cuentas WHERE numero_cuenta = %s",
+                (numero_cuenta,)
+            )
+            row = cur.fetchone()
+            if row is None:
+                raise ValueError("Cuenta no encontrada")
+
+            # Bloquear
+            cur.execute(
+                "UPDATE cuentas SET estado = 'BLOQUEADA' WHERE id = %s",
+                (row["id"],)
+            )
+
+            # Registrar movimiento
+            cur.execute(
+                """
+                INSERT INTO movimientos (cuenta_id, tipo, monto, descripcion, saldo_resultante)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    row["id"],
+                    "BLOQUEO",
+                    Decimal("0.00"),
+                    motivo or "Bloqueo manual de cuenta",
+                    Decimal("0.00"),
+                ),
+            )
+
+        conn.commit()
+        return True
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.close()
+
+
 
 
 

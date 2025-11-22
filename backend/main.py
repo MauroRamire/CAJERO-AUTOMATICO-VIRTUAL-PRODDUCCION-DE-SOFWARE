@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
+from database import cambiar_pin
 from database import test_query, get_saldo, hacer_deposito, hacer_retiro
 from database import (
     test_query,
@@ -9,13 +10,9 @@ from database import (
     hacer_retiro,
     hacer_transferencia,
     obtener_historial,
-    cambiar_pin_db,
-    bloquear_cuenta_db,
+    cambiar_pin,
+    bloquear_cuenta,
 )
-
-
-
-
 
 
 app = FastAPI(title="Cajero Virtual API")
@@ -97,7 +94,7 @@ def deposito(data: DepositoRequest):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        # 👇 cambiar esta línea
+        # cambiar esta línea
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -110,7 +107,7 @@ def transferencia(data: TransferenciaRequest):
         data.monto,
         data.pin,
         )
-        
+
         return {
             "status": "ok",
             "tipo": "transferencia",
@@ -150,13 +147,13 @@ def historial(numero_cuenta: str, limite: int = 10):
 
 
 @app.put("/cambiarPIN")
-def cambiar_pin(data: CambiarPINRequest):
+def endpoint_cambiar_pin(data: CambiarPINRequest):
     try:
-        cambiar_pin_db(data.numero_cuenta, data.pin_actual, data.pin_nuevo)
+        cambiar_pin(data.numero_cuenta, data.pin_actual, data.pin_nuevo)
         return {
             "status": "ok",
             "message": "PIN cambiado correctamente",
-            "numero_cuenta": data.numero_cuenta,
+            "numero_cuenta": data.numero_cuenta
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -165,9 +162,9 @@ def cambiar_pin(data: CambiarPINRequest):
 
 
 @app.put("/bloquearCuenta")
-def bloquear_cuenta(data: BloquearCuentaRequest):
+def endpoint_bloquear_cuenta(data: BloquearCuentaRequest):
     try:
-        bloquear_cuenta_db(data.numero_cuenta, data.motivo)
+        bloquear_cuenta(data.numero_cuenta, data.motivo)
         return {
             "status": "ok",
             "message": "Cuenta bloqueada correctamente",
