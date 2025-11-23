@@ -1,4 +1,6 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
 from database import cambiar_pin
@@ -17,6 +19,7 @@ from database import (
 
 app = FastAPI(title="Cajero Virtual API")
 
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # =====================
 # Modelos de petición
@@ -54,6 +57,10 @@ class BloquearCuentaRequest(BaseModel):
 # =====================
 # Endpoints
 # =====================
+
+@app.get("/", include_in_schema=False)
+def servir_front():
+    return FileResponse("static/index.html")
 
 @app.get("/")
 def root():
