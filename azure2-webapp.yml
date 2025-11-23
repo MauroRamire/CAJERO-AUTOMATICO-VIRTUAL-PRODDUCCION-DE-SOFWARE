@@ -1,0 +1,40 @@
+name: Deploy to Azure Web App
+
+on:
+  push:
+    branches:
+      - fernando-dev
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Zip backend
+        run: |
+          cd backend
+          zip -r ../backend.zip .
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: cajero-virtual-api
+          package: backend.zip
+          publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
