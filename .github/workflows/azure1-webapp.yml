@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fernando-dev
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -35,6 +36,6 @@ jobs:
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
-          app-name: cajero-virtual-api
+          app-name: cajero-virtual-api-mauro
           package: backend.zip
           publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
