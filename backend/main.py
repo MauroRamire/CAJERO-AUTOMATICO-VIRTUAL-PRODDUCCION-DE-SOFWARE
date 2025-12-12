@@ -3,9 +3,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
-from database import cambiar_pin
-from database import test_query, get_saldo, hacer_deposito, hacer_retiro
-from database import (
+from backend.database import cambiar_pin
+from backend.database import test_query, get_saldo, hacer_deposito, hacer_retiro
+from backend.database import (
     test_query,
     get_saldo,
     hacer_deposito,
