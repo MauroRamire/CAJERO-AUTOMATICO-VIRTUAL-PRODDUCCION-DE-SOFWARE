@@ -2,9 +2,10 @@ name: CI - Python QA
 
 on:
   push:
-    branches: ["main", "develop"]
+    branches: ["fernando-dev"]
   pull_request:
-    branches: ["main", "develop"]
+    branches: ["fernando-dev"]
+
 
 jobs:
   test:
